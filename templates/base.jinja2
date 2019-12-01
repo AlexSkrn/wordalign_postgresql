@@ -1,0 +1,13 @@
+<html>
+<head>
+<title>Контекстуальный словарь</title>
+</head>
+<body>
+	<nav>
+		<a id="retrieve" href="{{ url_for('retrieve') }}">Текст запроса</a>
+	</nav>
+	<h1>Словарь</h1>
+	<h2>{% block subtitle %} {% endblock subtitle %}</h2>
+	{% block content %} {% endblock content %}
+</body>
+</html>
