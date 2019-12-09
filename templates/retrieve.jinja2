@@ -1,11 +1,22 @@
 {% extends 'base.jinja2' %}
 
-{% block subtitle %} Retrieve a Total {% endblock subtitle %}
+{% block subtitle %} Найти фрагмент {% endblock subtitle %}
 
 {% block content %}
 <form method="GET">
   {% if error %}<span class="error">{{ error }}<br>{% endif %}
-	<label for="code">Code: </label><input type="text" id="code" name="code">
-	<input type="submit" value="Retrieve It!">
+	<label for="code">Термины для поиска: </label><input type="text" id="code" name="code">
+	<input type="submit" value="Найти!">
 </form>
 {% endblock content %}
+
+{# New code from here #}
+{% block subtitle2 %}Результаты поиска{% endblock subtitle2 %}
+
+{% block content2 %}
+<ul>
+    {% for donation in donations %}
+        <li> {{ donation[0] }} : {{ donation[1] }}</li>
+    {% endfor %}
+</ul>
+{% endblock content2 %}

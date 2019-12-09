@@ -83,19 +83,36 @@ def retrieve():
                 rus_terms.append(t[0])
             rus_terms = ' | '.join(rus_terms)  # 'люблю | нравится'
 
+            # query = (TranslationUnits.select(
+            #             fn.ts_headline(TranslationUnits.eng_content, fn.to_tsquery(eng_terms)),
+            #             fn.ts_headline(TranslationUnits.rus_content, fn.to_tsquery(rus_terms))
+            #                                 )
+            #                .where(TranslationUnits.eng_search.match(eng_terms))
+            #                .where(TranslationUnits.rus_search.match(rus_terms))
+            #                )
+            TranslationUnitsAlias = TranslationUnits.alias()
+            subquery = (TranslationUnitsAlias.select(
+                                      TranslationUnitsAlias.eng_content,
+                                      TranslationUnitsAlias.rus_content,
+                                      fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(eng_terms)).alias('rnk')
+                                                    )
+                           .where(TranslationUnitsAlias.eng_search.match(eng_terms))
+                           .limit(2)
+                           )
             query = (TranslationUnits.select(
-                        fn.ts_headline(TranslationUnits.eng_content, fn.to_tsquery(eng_terms)),
-                        fn.ts_headline(TranslationUnits.rus_content, fn.to_tsquery(rus_terms))
+                        fn.ts_headline(subquery.c.eng_content, fn.to_tsquery(eng_terms), 'StartSel=<mark><b>, StopSel=</mark></b>'),
+                        fn.ts_headline(subquery.c.rus_content, fn.to_tsquery(rus_terms), 'StartSel=<mark><b>, StopSel=</mark></b>')
                                             )
-                           .where(TranslationUnits.eng_search.match(eng_terms))
-                           .where(TranslationUnits.rus_search.match(rus_terms))
+                           .from_(subquery)
+                           .order_by(subquery.c.rnk.desc())
                            )
         except TranslationUnits.DoesNotExist:
             return render_template("retrieve.jinja2", error="No results found")
 
         else:
             rec = db.execute(query)
-            return render_template('showres.jinja2', donations=rec)
+            # return render_template('showres.jinja2', donations=rec)
+            return render_template("retrieve.jinja2", donations=rec)
 
 
 if __name__ == "__main__":
