@@ -71,8 +71,12 @@ def retrieve():
         return render_template("retrieve.jinja2")
     else:
         try:
-            num = len(code.split())
-            eng_terms = ((' | '.join(['{}'] * num)).format(*code.split()))  # -> 'love | python'
+            code_res = ''
+            for symb in code:
+                if symb not in '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~':
+                    code_res += symb
+            num = len(code_res.split())
+            eng_terms = ((' | '.join(['{}'] * num)).format(*code_res.split()[:4]))  # -> 'love | python'
             # eng_terms = fn.to_tsquery(eng_terms)
             rus_query = (Gloss.select(Gloss.rus_term)
                          .where(Gloss.eng_term.match(eng_terms))
