@@ -58,6 +58,7 @@ def show_all():
     # The code below gets results WITHOUT highlighting search terms
     query = (TranslationUnits
              .select()
+             .limit(10)
              # .where(TranslationUnits.english.match('love'))
              # .where(TranslationUnits.russian.match('люблю OR нравится'))
              )
@@ -72,20 +73,42 @@ def retrieve():
     else:
         try:
             code_res = ''
-            for symb in code:
+            for symb in code.lower():
                 if symb not in '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~':
                     code_res += symb
-            num = len(code_res.split())
-            eng_terms = ((' | '.join(['{}'] * num)).format(*code_res.split()[:4]))  # -> 'love | python'
-            # eng_terms = fn.to_tsquery(eng_terms)
+            code_res_list4 = code_res.split()[:4]
+            # num = len(code_res.split())
+            # if num > 4:
+            #     num = 4
+
+            # Collect possible Russian translations
+            # Exact search
+            exact_search_rus_terms = []
+            for eng_term in code_res_list4:
+                rus_query = (Gloss.select(Gloss.rus_term)
+                             .where(Gloss.eng_term == eng_term)  # Exact query
+                             )
+                rus_terms_cur = db.execute(rus_query)  # 'люблю | нравится'
+                for t in rus_terms_cur:
+                    exact_search_rus_terms.append(t[0])
+            # Fuzzy search
+            # eng_terms = ((' | '.join(['{}'] * num)).format(*code_res.split()[:4]))  # -> 'love | python'
+            # # eng_terms = fn.to_tsquery(eng_terms)  # No need because
+            # using .match in where clause invokes to_tsquery() and, thus, FTS
+            eng_terms = ' | '.join(code_res_list4)   # -> 'love | python'
+            fuzzy_search_rus_terms = []
             rus_query = (Gloss.select(Gloss.rus_term)
-                         .where(Gloss.eng_term.match(eng_terms))
+                         .where(Gloss.eng_term.match(eng_terms))  # Fuzzy query
                          )
             rus_terms_cur = db.execute(rus_query)
-            rus_terms = []
             for t in rus_terms_cur:
-                rus_terms.append(t[0])
-            rus_terms = ' | '.join(rus_terms)  # 'люблю | нравится'
+                fuzzy_search_rus_terms.append(t[0])
+
+            # Combine search results
+            exact_search_rus_terms.extend(fuzzy_search_rus_terms)
+            rus_terms = set(exact_search_rus_terms)
+
+            rus_terms = ' | '.join(rus_terms)  # 'люблю | нравится | python'
 
             # query = (TranslationUnits.select(
             #             fn.ts_headline(TranslationUnits.eng_content, fn.to_tsquery(eng_terms)),
@@ -101,14 +124,19 @@ def retrieve():
                                       fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(eng_terms)).alias('rnk')
                                                     )
                            .where(TranslationUnitsAlias.eng_search.match(eng_terms))
-                           .limit(2)
+                           .limit(50)
                            )
             query = (TranslationUnits.select(
-                        fn.ts_headline(subquery.c.eng_content, fn.to_tsquery(eng_terms), 'StartSel=<mark><b>, StopSel=</mark></b>'),
+                        fn.ts_headline(subquery.c.eng_content,
+                                       fn.to_tsquery(eng_terms),
+                                       'StartSel=<mark><b>, StopSel=</mark></b>',
+                                       # 'HighlightAll=TRUE',
+                                       ),
                         fn.ts_headline(subquery.c.rus_content, fn.to_tsquery(rus_terms), 'StartSel=<mark><b>, StopSel=</mark></b>')
                                             )
                            .from_(subquery)
                            .order_by(subquery.c.rnk.desc())
+                           .limit(10)
                            )
         except TranslationUnits.DoesNotExist:
             return render_template("retrieve.jinja2", error="No results found")

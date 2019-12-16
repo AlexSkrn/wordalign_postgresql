@@ -5,7 +5,7 @@
 {% block content %}
 <form method="GET">
   {% if error %}<span class="error">{{ error }}<br>{% endif %}
-	<label for="code">Термины для поиска: </label><input type="text" id="code" name="code">
+	<label for="code">Термины для поиска: </label><input type="text" id="code" name="code" maxlength="200" size="60">
 	<input type="submit" value="Найти!">
 </form>
 {% endblock content %}
@@ -13,10 +13,27 @@
 {# New code from here #}
 {% block subtitle2 %}Результаты поиска{% endblock subtitle2 %}
 
+{# Old code
 {% block content2 %}
 <ul>
     {% for donation in donations %}
         <li> {{ donation[0] }} : {{ donation[1] }}</li>
     {% endfor %}
 </ul>
+{% endblock content2 %}
+#}
+
+{% block content2 %}
+<div>
+  <table>
+    <tbody>
+      {% for donation in donations %}
+      <tr>
+        <td width='350' style='border-bottom:0.5pt dashed black'> {{ donation[0] }} </td>
+        <td width='350' style='border-bottom:0.5pt dashed black'> {{ donation[1] }} </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock content2 %}
