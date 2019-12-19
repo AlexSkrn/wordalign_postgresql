@@ -7,9 +7,26 @@
 		<a id="retrieve" href="{{ url_for('retrieve') }}">Вернуться к форме поиска</a>
 	</nav>
 	<h1>Поиск в контексте</h1>
-	<h2>{% block subtitle %} {% endblock subtitle %}</h2>
+
+</br>
+Сайт содержит около одной тысячи предложений из резолюций СБ ООН.
+</br></br>
+Примеры поисковых запросов:</br>
+<u>specially designed</u>, <u>humanitarian assistance</u>, <u>arms embargo</u>, <u>displaced persons</u>,</br>
+<u>troop contributing countries</u>, <u>decides remain seized</u>, <u>unmanned aerial vehicles</u>,</br>
+<u>non civil certified aircraft</u></br></br>
+
+
+	<form method="GET">
+	  {% if error %}<span class="error">{{ error }}<br>{% endif %}
+		<label for="search_term">Термины для поиска (максимум 4 слова): </label><input type="text" id="search_term" name="search_term" maxlength="200" size="60">
+		<input type="submit" value="Найти!">
+	</form>
+
+
+	{#<h2>{% block subtitle %} {% endblock subtitle %}</h2>#}
 	{% block content %} {% endblock content %}
-	{# Two new lines below #}
+
 	<h2>{% block subtitle2 %} {% endblock subtitle2 %}</h2>
 	{% block content2 %} {% endblock content2 %}
 </body>

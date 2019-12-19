@@ -1,6 +1,5 @@
 import os
 
-# from playhouse.postgres_ext import PostgresqlExtDatabase
 from playhouse.postgres_ext import Model
 from playhouse.postgres_ext import TextField
 from playhouse.postgres_ext import TSVectorField

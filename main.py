@@ -31,6 +31,8 @@
 ###############
 import os
 
+import re
+
 from flask import Flask
 from flask import render_template
 from flask import request
@@ -67,24 +69,24 @@ def show_all():
 
 @app.route('/retrieve')
 def retrieve():
-    code = request.args.get('code', None)
-    if code is None:
+    search_term = request.args.get('search_term', None)
+    if search_term is None:
         return render_template("retrieve.jinja2")
     else:
         try:
-            code_res = ''
-            for symb in code.lower():
+            search_term_res = ''
+            for symb in search_term.lower():
                 if symb not in '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~':
-                    code_res += symb
-            code_res_list4 = code_res.split()[:4]
-            # num = len(code_res.split())
+                    search_term_res += symb
+            search_term_res_list4 = search_term_res.split()[:4]
+            # num = len(search_term_res.split())
             # if num > 4:
             #     num = 4
 
             # Collect possible Russian translations
             # Exact search
             exact_search_rus_terms = []
-            for eng_term in code_res_list4:
+            for eng_term in search_term_res_list4:
                 rus_query = (Gloss.select(Gloss.rus_term)
                              .where(Gloss.eng_term == eng_term)  # Exact query
                              )
@@ -92,10 +94,10 @@ def retrieve():
                 for t in rus_terms_cur:
                     exact_search_rus_terms.append(t[0])
             # Fuzzy search
-            # eng_terms = ((' | '.join(['{}'] * num)).format(*code_res.split()[:4]))  # -> 'love | python'
+            # eng_terms = ((' | '.join(['{}'] * num)).format(*csearch_term_res.split()[:4]))  # -> 'love | python'
             # # eng_terms = fn.to_tsquery(eng_terms)  # No need because
             # using .match in where clause invokes to_tsquery() and, thus, FTS
-            eng_terms = ' | '.join(code_res_list4)   # -> 'love | python'
+            eng_terms = ' | '.join(search_term_res_list4)   # -> 'love | python'
             fuzzy_search_rus_terms = []
             rus_query = (Gloss.select(Gloss.rus_term)
                          .where(Gloss.eng_term.match(eng_terms))  # Fuzzy query
@@ -129,10 +131,14 @@ def retrieve():
             query = (TranslationUnits.select(
                         fn.ts_headline(subquery.c.eng_content,
                                        fn.to_tsquery(eng_terms),
-                                       'StartSel=<mark><b>, StopSel=</mark></b>',
-                                       # 'HighlightAll=TRUE',
+                                       # 'StartSel=<mark><b>, StopSel=</mark></b>',
+                                       'HighlightAll=TRUE',
                                        ),
-                        fn.ts_headline(subquery.c.rus_content, fn.to_tsquery(rus_terms), 'StartSel=<mark><b>, StopSel=</mark></b>')
+                        fn.ts_headline(subquery.c.rus_content,
+                                       fn.to_tsquery(rus_terms),
+                                       # 'StartSel=<mark><b>, StopSel=</mark></b>'),
+                                       'HighlightAll=TRUE',
+                                       )
                                             )
                            .from_(subquery)
                            .order_by(subquery.c.rnk.desc())
@@ -143,8 +149,15 @@ def retrieve():
 
         else:
             rec = db.execute(query)
+            results = []
+            for line in rec:
+                line0, line1 = re.sub('<b>', '<mark><b>', line[0]), \
+                               re.sub('<b>', '<mark><b>', line[1])
+                line0, line1 = re.sub('</b>', '</b></mark>', line0), \
+                               re.sub('</b>', '</b></mark>', line1)
+                results.append((line0, line1))
             # return render_template('showres.jinja2', donations=rec)
-            return render_template("retrieve.jinja2", donations=rec)
+            return render_template("retrieve.jinja2", results=results, terms=eng_terms)
 
 
 if __name__ == "__main__":
