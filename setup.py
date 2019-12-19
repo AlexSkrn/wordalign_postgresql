@@ -6,7 +6,7 @@ from model import db
 from model import TranslationUnits
 from model import Gloss
 
-# db.connect()
+db.drop_tables([TranslationUnits, Gloss])
 db.create_tables([TranslationUnits, Gloss])
 
 # data = [('I love (Python)', 'Я люблю (Python)'),
@@ -16,7 +16,7 @@ db.create_tables([TranslationUnits, Gloss])
 #         ]
 ###########################################################################
 units_data = []
-with open(os.path.join('data', 'en_ru_sorted_uniq_desimil'), 'r', encoding='utf8') as fromF:
+with open(os.path.join('data', 'en_ru_heroku_1000'), 'r', encoding='utf8') as fromF:
     for line in fromF:
         line_list = line.split('\t')
         src, trg = line_list[0].strip(), line_list[1].strip()
@@ -73,7 +73,7 @@ with db.atomic():
 
 
 gloss_data = []
-with open(os.path.join('data', 'lex_preproc40_cleaned'), 'r', encoding='utf8') as fromF:
+with open(os.path.join('data', 'heroku_glossary'), 'r', encoding='utf8') as fromF:
     for line in fromF:
         line_list = line.split('\t')
         src, trg = line_list[0].strip(), line_list[1].strip()
