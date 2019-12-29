@@ -77,8 +77,27 @@ with open(os.path.join('data', 'heroku_glossary'), 'r', encoding='utf8') as from
     for line in fromF:
         line_list = line.split('\t')
         src, trg = line_list[0].strip(), line_list[1].strip()
-        gloss_data.append((src, trg))
+        gloss_data.append([src, trg])  # changed to list from tuplle
+# print(gloss_data[:10])
 
-fields = [Gloss.eng_term, Gloss.rus_term]
+# fields = [Gloss.eng_term, Gloss.rus_term]
+# with db.atomic():
+#     Gloss.insert_many(gloss_data, fields=fields).execute()
+
+# Fill in autocomplete column
+gloss_autocomplete_data = []
+with open(os.path.join('data', 'auto_complete_eng'), 'r', encoding='utf8') as fromF:
+    for line in fromF:
+        term = line.strip()
+        gloss_autocomplete_data.append(term)
+
+# print(gloss_autocomplete_data)
+for idx, item in enumerate(gloss_data):
+    try:
+        gloss_data[idx].append(gloss_autocomplete_data[idx])
+    except IndexError:
+        gloss_data[idx].append(None)
+
+fields = [Gloss.eng_term, Gloss.rus_term, Gloss.suggest_eng]
 with db.atomic():
     Gloss.insert_many(gloss_data, fields=fields).execute()

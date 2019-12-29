@@ -23,6 +23,7 @@ class TranslationUnits(Model):
 class Gloss(Model):
     eng_term = TSVectorField()
     rus_term = TextField()
+    suggest_eng = TextField(null=True)  # Keeps an autocomplete list
 
     class Meta:
         database = db

@@ -38,6 +38,7 @@ from flask import render_template
 from flask import request
 from flask import redirect
 from flask import url_for
+from flask import jsonify
 # from flask import session
 
 from playhouse.postgres_ext import fn
@@ -49,10 +50,12 @@ from model import Gloss
 
 app = Flask(__name__)
 
+
 @app.route('/')
 def home():
     """Handle calls to the root of the web site."""
     return redirect(url_for('retrieve'))
+
 
 @app.route('/donations')
 def show_all():
@@ -66,6 +69,7 @@ def show_all():
              )
     rec = db.execute(query)
     return render_template('donations.jinja2', donations=rec)
+
 
 @app.route('/retrieve')
 def retrieve():
@@ -156,8 +160,20 @@ def retrieve():
                 line0, line1 = re.sub('</b>', '</b></mark>', line0), \
                                re.sub('</b>', '</b></mark>', line1)
                 results.append((line0, line1))
-            # return render_template('showres.jinja2', donations=rec)
             return render_template("retrieve.jinja2", results=results, terms=eng_terms)
+
+
+@app.route('/autocomplete', methods=['GET'])
+def autocomplete():
+    search = request.args.get('q')
+    q = (Gloss.select(Gloss.suggest_eng)
+              .where(Gloss.suggest_eng.contains(search))
+              .limit(15)
+         )
+    cur = db.execute(q)
+    results = [elem[0] for elem in cur]
+
+    return jsonify(matching_results=results)
 
 
 if __name__ == "__main__":
