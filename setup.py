@@ -77,7 +77,7 @@ with open(os.path.join('data', 'heroku_glossary'), 'r', encoding='utf8') as from
     for line in fromF:
         line_list = line.split('\t')
         src, trg = line_list[0].strip(), line_list[1].strip()
-        gloss_data.append([src, trg])  # changed to list from tuplle
+        gloss_data.append([fn.to_tsvector(src), trg])  # changed to list from tuplle
 # print(gloss_data[:10])
 
 # fields = [Gloss.eng_term, Gloss.rus_term]

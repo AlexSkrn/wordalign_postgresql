@@ -42,7 +42,7 @@ $(function() {
 
 	<form method="GET">
 	  {% if error %}<span class="error">{{ error }}<br>{% endif %}
-		<label for="search_term">Термины для поиска (максимум 4 слова): </label><input type="text" id="search_term" name="search_term" maxlength="200" size="60" class="form-control input-lg">
+		<label for="search_term">Термины для поиска (максимум 4 слова): </label><input type="text" id="search_term" name="search_term" maxlength="200" size="60" class="form-control input-lg" autocomplete="off" placeholder="Введите текст">
 		<input type="submit" value="Найти!">
 	</form>
 
