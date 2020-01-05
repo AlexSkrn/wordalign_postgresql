@@ -57,6 +57,12 @@ def home():
     return redirect(url_for('retrieve'))
 
 
+@app.route('/google49522071f37de87c.html')
+def google_verify():
+    """Return google verification code page."""
+    return render_template('googleverify.jinja2')
+
+
 @app.route('/donations')
 def show_all():
     """Handle a page showing all donors and donations."""
