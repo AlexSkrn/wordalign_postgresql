@@ -21,18 +21,24 @@ $(function() {
     $("#search_term").autocomplete({
         source:function(request, response) {
             $.getJSON("{{url_for('autocomplete')}}",{
-                q: request.term, // in flask, "q" will be the argument to look for using request.args
+                q: request.term,
             }, function(data) {
-                response(data.matching_results); // matching_results from jsonify
+                response(data.matching_results);
             });
         },
         minLength: 2,
         select: function(event, ui) {
-            console.log(ui.item.value); // not in your question, but might help later
+            console.log(ui.item.value);
         }
     });
 })
 </script>
+
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+<link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+<link rel="manifest" href="/site.webmanifest">
 
 </head>
 <body>
@@ -51,7 +57,6 @@ $(function() {
 
 
 	<form method="GET">
-	  {% if error %}<span class="error">{{ error }}<br>{% endif %}
 		<label for="search_term">Термины для поиска (максимум 4 слова): </label><input type="text" id="search_term" name="search_term" maxlength="200" size="60" class="form-control input-lg" autocomplete="off" placeholder="Введите текст">
 		<input type="submit" value="Найти!">
 	</form>

@@ -1,18 +1,6 @@
 {% extends 'base.jinja2' %}
 
-{#
-{% block subtitle %} Найти фрагмент {% endblock subtitle %}
 
-{% block content %}
-<form method="GET">
-  {% if error %}<span class="error">{{ error }}<br>{% endif %}
-	<label for="search_term">Термины для поиска: </label><input type="text" id="search_term" name="search_term" maxlength="200" size="60">
-	<input type="submit" value="Найти!">
-</form>
-{% endblock content %}
-#}
-
-{#% block subtitle %} Найти фрагмент {% endblock subtitle %#}
 
 {% block content %}
 Вы искали: {{ terms }}
@@ -22,6 +10,7 @@
 {% block subtitle2 %}Результаты поиска{% endblock subtitle2 %}
 
 {% block content2 %}
+{% if no_res %}<span class="no_res">{{ no_res }}<br>{% endif %}
 <div>
   <table>
     <tbody>
