@@ -14,7 +14,7 @@ class TranslationUnits(Model):
     eng_search = TSVectorField()
 
     rus_content = TextField()
-    rus_search = TSVectorField()
+    rus_search = TSVectorField('russian')
 
     class Meta:
         database = db
@@ -25,7 +25,7 @@ class Gloss(Model):
     eng_term_search = TSVectorField()
 
     rus_term_content = TextField()
-    rus_term_search = TSVectorField()
+    rus_term_search = TSVectorField('russian')
 
     suggest_eng = TextField(null=True)  # Keeps an autocomplete list
 

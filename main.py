@@ -42,7 +42,18 @@ def google_verify():
     return render_template('googleverify.jinja2')
 
 
-def get_segments(search_list):
+def format_highlight(executed_query):
+    results = []
+    for line in executed_query:
+        line0, line1 = re.sub('<b>', '<mark><b>', line[0]), \
+                       re.sub('<b>', '<mark><b>', line[1])
+        line0, line1 = re.sub('</b>', '</b></mark>', line0), \
+                       re.sub('</b>', '</b></mark>', line1)
+        results.append((line0, line1))
+    return results
+
+
+def query_eng(search_list):
     # Collect possible Russian translations
     # Exact search
     exact_search_rus_terms = []
@@ -75,10 +86,11 @@ def get_segments(search_list):
     subquery = (TranslationUnitsAlias.select(
                               TranslationUnitsAlias.eng_content,
                               TranslationUnitsAlias.rus_content,
-                              fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(eng_terms)).alias('rnk')
+                              # fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(eng_terms)).alias('rnk')
                                             )
                    .where(TranslationUnitsAlias.eng_search.match(eng_terms))
-                   .limit(50)
+                   .order_by(fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(eng_terms)).desc())
+                   .limit(10)
                    )
     query = (TranslationUnits.select(
                 fn.ts_headline(subquery.c.eng_content,
@@ -93,21 +105,14 @@ def get_segments(search_list):
                                )
                                     )
                    .from_(subquery)
-                   .order_by(subquery.c.rnk.desc())
-                   .limit(10)
+                   # .order_by(subquery.c.rnk.desc())
+                   # .limit(10)
                    )
     rec = db.execute(query)
-    results = []
-    for line in rec:
-        line0, line1 = re.sub('<b>', '<mark><b>', line[0]), \
-                       re.sub('<b>', '<mark><b>', line[1])
-        line0, line1 = re.sub('</b>', '</b></mark>', line0), \
-                       re.sub('</b>', '</b></mark>', line1)
-        results.append((line0, line1))
-    return results, eng_terms
+    return format_highlight(rec), eng_terms
 
 
-def get_segments_rus(search_list):
+def query_rus(search_list):
     # Collect possible Russian translations
     # Exact search
     exact_search_eng_terms = []
@@ -124,7 +129,7 @@ def get_segments_rus(search_list):
     rus_terms = ' | '.join(search_list)   # -> 'love | python'
     fuzzy_search_eng_terms = []
     eng_query = (Gloss.select(Gloss.eng_term_content)
-                 .where(Gloss.rus_term_search.match(rus_terms))  # Fuzzy query
+                 .where(Gloss.rus_term_search.match(rus_terms, language='russian'))  # Fuzzy query
                  )
     eng_terms_cur = db.execute(eng_query)
     for t in eng_terms_cur:
@@ -140,14 +145,15 @@ def get_segments_rus(search_list):
     subquery = (TranslationUnitsAlias.select(
                               TranslationUnitsAlias.rus_content,
                               TranslationUnitsAlias.eng_content,
-                              fn.ts_rank_cd(TranslationUnitsAlias.rus_search, fn.to_tsquery(rus_terms)).alias('rnk')
+                              # fn.ts_rank_cd(TranslationUnitsAlias.rus_search, fn.to_tsquery('russian', rus_terms)).alias('rnk')
                                             )
-                   .where(TranslationUnitsAlias.rus_search.match(rus_terms))
-                   .limit(50)
+                   .where(TranslationUnitsAlias.rus_search.match(rus_terms, language='russian'))
+                   .order_by(fn.ts_rank_cd(TranslationUnitsAlias.rus_search, fn.to_tsquery('russian', rus_terms)).desc())
+                   .limit(10)
                    )
     query = (TranslationUnits.select(
-                fn.ts_headline(subquery.c.rus_content,
-                               fn.to_tsquery(rus_terms),
+                fn.ts_headline('russian', subquery.c.rus_content,
+                               fn.to_tsquery('russian', rus_terms),
                                # 'StartSel=<mark><b>, StopSel=</mark></b>',
                                'HighlightAll=TRUE',
                                ),
@@ -158,18 +164,11 @@ def get_segments_rus(search_list):
                                )
                                     )
                    .from_(subquery)
-                   .order_by(subquery.c.rnk.desc())
-                   .limit(10)
+                   # .order_by(subquery.c.rnk.desc())
+                   # .limit(10)
                    )
     rec = db.execute(query)
-    results = []
-    for line in rec:
-        line0, line1 = re.sub('<b>', '<mark><b>', line[0]), \
-                       re.sub('<b>', '<mark><b>', line[1])
-        line0, line1 = re.sub('</b>', '</b></mark>', line0), \
-                       re.sub('</b>', '</b></mark>', line1)
-        results.append((line0, line1))
-    return results, rus_terms
+    return format_highlight(rec), rus_terms
 
 
 @app.route('/retrieve')
@@ -181,15 +180,17 @@ def retrieve():
         # try:
         search_term_res = ''
         for symb in search_term.lower():
-            if symb not in '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~':
+            if symb not in '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~0123456789':
                 search_term_res += symb
         search_term_res_list4 = search_term_res.split()[:4]
-        if any(ltr in string.ascii_lowercase for ltr in search_term_res_list4[0]):
-            results, terms = get_segments(search_term_res_list4)
-        else:
-            # print('invoking elif clause!!!')
-            results, terms = get_segments_rus(search_term_res_list4)
-
+        try:
+            if any(ltr in string.ascii_lowercase for ltr in search_term_res_list4[0]):
+                results, terms = query_eng(search_term_res_list4)
+            else:
+                # print('invoking elif clause!!!')
+                results, terms = query_rus(search_term_res_list4)
+        except IndexError:
+            return render_template("retrieve.jinja2", no_res="No results found")
 ##########################################################################
         # # Collect possible Russian translations
         # # Exact search

@@ -21,7 +21,7 @@ with open(os.path.join('data', 'en_ru_heroku_1000'), 'r', encoding='utf8') as fr
         line_list = line.split('\t')
         src, trg = line_list[0].strip(), line_list[1].strip()
         row = (src, fn.to_tsvector(src),
-               trg, fn.to_tsvector(trg)
+               trg, fn.to_tsvector('russian', trg)
                )
         units_data.append(row)
 
@@ -37,7 +37,7 @@ with open(os.path.join('data', 'heroku_glossary'), 'r', encoding='utf8') as from
         line_list = line.split('\t')
         src, trg = line_list[0].strip(), line_list[1].strip()
         row = [src, fn.to_tsvector(src),
-               trg, fn.to_tsvector(trg)
+               trg, fn.to_tsvector('russian', trg)
                ]
         gloss_data.append(row)
 
@@ -48,7 +48,14 @@ with open(os.path.join('data', 'auto_complete_eng'), 'r', encoding='utf8') as fr
         term = line.strip()
         gloss_autocomplete_data.append(term)
 
-# print(gloss_autocomplete_data)
+with open(os.path.join('data', 'auto_complete_rus'), 'r', encoding='utf8') as fromF:
+    for line in fromF:
+        term = line.strip()
+        gloss_autocomplete_data.append(term)
+
+gloss_autocomplete_data.sort(key=lambda x: len(x), reverse=True)
+
+
 for idx, item in enumerate(gloss_data):
     try:
         gloss_data[idx].append(gloss_autocomplete_data[idx])
