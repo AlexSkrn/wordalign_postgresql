@@ -29,60 +29,17 @@ unit_fields = [TranslationUnits.eng_content, TranslationUnits.eng_search,
                TranslationUnits.rus_content, TranslationUnits.rus_search]
 with db.atomic():
     TranslationUnits.insert_many(units_data, fields=unit_fields).execute()
-###########################################################################
-# def insert_data(src, trg):
-#     record = TranslationUnits.create(eng_content=src,
-#                                      eng_search=fn.to_tsvector(src),
-#                                      rus_content=trg,
-#                                      rus_search=fn.to_tsvector(trg)
-#                                      )
-#
-# # NEED TO CHANGE THIS FOR BULK INSERT SOMEHOW!
-# for en, ru in data:
-#     insert_data(en, ru)
 
-########
-# units_data = []
-# for src, trg in data:
-#     row = (src, fn.to_tsvector(src),
-#            trg, fn.to_tsvector(trg)
-#            )
-#     units_data.append(row)
-# unit_fields = [TranslationUnits.eng_content, TranslationUnits.eng_search,
-#                TranslationUnits.rus_content, TranslationUnits.rus_search]
-# with db.atomic():
-#     TranslationUnits.insert_many(units_data, fields=unit_fields).execute()
-
-# Enter data into Glossary
-# gloss_data = [('i', 'я'),
-#               ('love', 'люблю'),
-#               ('love', 'нравится'),
-#               ('python', 'python'),
-#               ('hate', 'терпеть'),
-#               ('hate', 'не'),
-#               ('hate', 'могу'),
-#               ('like', 'нравится'),
-#               ('c', 'c'),
-#               ('coding', 'писать'),
-#               ('coding', 'код'),
-#               ]
-#
-# fields = [Gloss.eng_term, Gloss.rus_term]
-# with db.atomic():
-#     Gloss.insert_many(gloss_data, fields=fields).execute()
-
-
+############# FILLING IN GLOSSARY DATA ###############
 gloss_data = []
 with open(os.path.join('data', 'heroku_glossary'), 'r', encoding='utf8') as fromF:
     for line in fromF:
         line_list = line.split('\t')
         src, trg = line_list[0].strip(), line_list[1].strip()
-        gloss_data.append([fn.to_tsvector(src), trg])  # changed to list from tuplle
-# print(gloss_data[:10])
-
-# fields = [Gloss.eng_term, Gloss.rus_term]
-# with db.atomic():
-#     Gloss.insert_many(gloss_data, fields=fields).execute()
+        row = [src, fn.to_tsvector(src),
+               trg, fn.to_tsvector(trg)
+               ]
+        gloss_data.append(row)
 
 # Fill in autocomplete column
 gloss_autocomplete_data = []
@@ -98,6 +55,9 @@ for idx, item in enumerate(gloss_data):
     except IndexError:
         gloss_data[idx].append(None)
 
-fields = [Gloss.eng_term, Gloss.rus_term, Gloss.suggest_eng]
+fields = [Gloss.eng_term_content, Gloss.eng_term_search,
+          Gloss.rus_term_content, Gloss.rus_term_search,
+          Gloss.suggest_eng]
+
 with db.atomic():
     Gloss.insert_many(gloss_data, fields=fields).execute()
