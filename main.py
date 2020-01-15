@@ -44,62 +44,71 @@ def google_verify():
 
 def format_highlight(executed_query):
     results = []
+    new_opening_tag = '<mark><b>'
+    new_closing_tag = '</b></mark>'
+    # '/retrieve?search_term=Соединенные+Штаты+Америки'
+    pattern = r'<b>(\w+)</b>'
+
     for line in executed_query:
-        line0, line1 = re.sub('<b>', '<mark><b>', line[0]), \
-                       re.sub('<b>', '<mark><b>', line[1])
-        line0, line1 = re.sub('</b>', '</b></mark>', line0), \
-                       re.sub('</b>', '</b></mark>', line1)
+        trg_terms = '+'.join(set(re.findall(pattern, line[1])))
+        new_trg_opening_tag = '<a href="/retrieve?search_term={}" rel="nofollow">{}'.format(trg_terms, new_opening_tag)
+        new_trg_closing_tag = '{}</a>'.format(new_closing_tag)
+        line0, line1 = re.sub('<b>', new_opening_tag, line[0]), \
+                       re.sub('<b>', new_trg_opening_tag, line[1])
+        line0, line1 = re.sub('</b>', new_closing_tag, line0), \
+                       re.sub('</b>', new_trg_closing_tag, line1)
         results.append((line0, line1))
     return results
 
 
-def query_eng(search_list):
-    # Collect possible Russian translations
+def query_gloss(search_list, FTS_search_str, lang):
+    """Return a string of target terms found."""
+    if lang == 'english':
+        trg_term_content = Gloss.rus_term_content
+        src_term_search = Gloss.eng_term_search
+    if lang == 'russian':
+        trg_term_content = Gloss.eng_term_content
+        src_term_search = Gloss.rus_term_search
+    # Collect possible search term translations
+    target_terms = []
     # Exact search
-    exact_search_rus_terms = []
-    for eng_term in search_list:
-        rus_query = (Gloss.select(Gloss.rus_term_content)
-                     .where(Gloss.eng_term_search == eng_term)  # Exact query
-                     )
-        rus_terms_cur = db.execute(rus_query)  # 'люблю | нравится'
-        for t in rus_terms_cur:
-            exact_search_rus_terms.append(t[0])
-    # Fuzzy search
-    # # eng_terms = fn.to_tsquery(eng_terms)  # No need because
-    # using .match in where clause invokes to_tsquery() and, thus, FTS
-    eng_terms = ' | '.join(search_list)   # -> 'love | python'
-    fuzzy_search_rus_terms = []
-    rus_query = (Gloss.select(Gloss.rus_term_content)
-                 .where(Gloss.eng_term_search.match(eng_terms))  # Fuzzy query
+    for term in search_list:
+        query = (Gloss.select(trg_term_content)
+                 .where(src_term_search == term)
                  )
-    rus_terms_cur = db.execute(rus_query)
-    for t in rus_terms_cur:
-        fuzzy_search_rus_terms.append(t[0])
+        cur = db.execute(query)
+        for t in cur:
+            target_terms.append(t[0])
+    # Fuzzy search
+    query = (Gloss.select(trg_term_content)
+             .where(src_term_search.match(FTS_search_str, language=lang))
+             )
+    cur = db.execute(query)
+    for t in cur:
+        target_terms.append(t[0])
 
-    # Combine search results
-    exact_search_rus_terms.extend(fuzzy_search_rus_terms)
-    rus_terms = set(exact_search_rus_terms)
+    return ' | '.join(set(target_terms))  # -> 'like | love | python'
 
-    rus_terms = ' | '.join(rus_terms)  # 'люблю | нравится | python'
 
+def query_eng(FTS_src_str, FTS_trg_str):
     TranslationUnitsAlias = TranslationUnits.alias()
     subquery = (TranslationUnitsAlias.select(
                               TranslationUnitsAlias.eng_content,
                               TranslationUnitsAlias.rus_content,
-                              # fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(eng_terms)).alias('rnk')
+                              # fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(FTS_search_str)).alias('rnk')
                                             )
-                   .where(TranslationUnitsAlias.eng_search.match(eng_terms))
-                   .order_by(fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(eng_terms)).desc())
+                   .where(TranslationUnitsAlias.eng_search.match(FTS_src_str))
+                   .order_by(fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(FTS_src_str)).desc())
                    .limit(10)
                    )
     query = (TranslationUnits.select(
                 fn.ts_headline(subquery.c.eng_content,
-                               fn.to_tsquery(eng_terms),
+                               fn.to_tsquery(FTS_src_str),
                                # 'StartSel=<mark><b>, StopSel=</mark></b>',
                                'HighlightAll=TRUE',
                                ),
                 fn.ts_headline(subquery.c.rus_content,
-                               fn.to_tsquery(rus_terms),
+                               fn.to_tsquery(FTS_trg_str),
                                # 'StartSel=<mark><b>, StopSel=</mark></b>'),
                                'HighlightAll=TRUE',
                                )
@@ -109,66 +118,33 @@ def query_eng(search_list):
                    # .limit(10)
                    )
     rec = db.execute(query)
-    return format_highlight(rec), eng_terms
+    return format_highlight(rec)
 
 
-def query_rus(search_list):
-    # Collect possible Russian translations
-    # Exact search
-    exact_search_eng_terms = []
-    for rus_term in search_list:
-        eng_query = (Gloss.select(Gloss.eng_term_content)
-                     .where(Gloss.rus_term_search == rus_term)  # Exact query
-                     )
-        eng_terms_cur = db.execute(eng_query)  # 'люблю | нравится'
-        for t in eng_terms_cur:
-            exact_search_eng_terms.append(t[0])
-    # Fuzzy search
-    # # eng_terms = fn.to_tsquery(eng_terms)  # No need because
-    # using .match in where clause invokes to_tsquery() and, thus, FTS
-    rus_terms = ' | '.join(search_list)   # -> 'love | python'
-    fuzzy_search_eng_terms = []
-    eng_query = (Gloss.select(Gloss.eng_term_content)
-                 .where(Gloss.rus_term_search.match(rus_terms, language='russian'))  # Fuzzy query
-                 )
-    eng_terms_cur = db.execute(eng_query)
-    for t in eng_terms_cur:
-        fuzzy_search_eng_terms.append(t[0])
-
-    # Combine search results
-    exact_search_eng_terms.extend(fuzzy_search_eng_terms)
-    eng_terms = set(exact_search_eng_terms)
-
-    eng_terms = ' | '.join(eng_terms)  # 'люблю | нравится | python'
-
+def query_rus(FTS_src_str, FTS_trg_str):
     TranslationUnitsAlias = TranslationUnits.alias()
     subquery = (TranslationUnitsAlias.select(
                               TranslationUnitsAlias.rus_content,
                               TranslationUnitsAlias.eng_content,
-                              # fn.ts_rank_cd(TranslationUnitsAlias.rus_search, fn.to_tsquery('russian', rus_terms)).alias('rnk')
                                             )
-                   .where(TranslationUnitsAlias.rus_search.match(rus_terms, language='russian'))
-                   .order_by(fn.ts_rank_cd(TranslationUnitsAlias.rus_search, fn.to_tsquery('russian', rus_terms)).desc())
-                   .limit(10)
-                   )
+                 .where(TranslationUnitsAlias.rus_search.match(FTS_src_str, language='russian'))
+                 .order_by(fn.ts_rank_cd(TranslationUnitsAlias.rus_search, fn.to_tsquery('russian', FTS_src_str)).desc())
+                 .limit(10)
+                )
     query = (TranslationUnits.select(
                 fn.ts_headline('russian', subquery.c.rus_content,
-                               fn.to_tsquery('russian', rus_terms),
-                               # 'StartSel=<mark><b>, StopSel=</mark></b>',
+                               fn.to_tsquery('russian', FTS_src_str),
                                'HighlightAll=TRUE',
                                ),
                 fn.ts_headline(subquery.c.eng_content,
-                               fn.to_tsquery(eng_terms),
-                               # 'StartSel=<mark><b>, StopSel=</mark></b>'),
+                               fn.to_tsquery(FTS_trg_str),
                                'HighlightAll=TRUE',
                                )
                                     )
-                   .from_(subquery)
-                   # .order_by(subquery.c.rnk.desc())
-                   # .limit(10)
-                   )
+             .from_(subquery)
+             )
     rec = db.execute(query)
-    return format_highlight(rec), rus_terms
+    return format_highlight(rec)
 
 
 @app.route('/retrieve')
@@ -177,87 +153,29 @@ def retrieve():
     if not search_term:
         return render_template("retrieve.jinja2")
     else:
-        # try:
         search_term_res = ''
         for symb in search_term.lower():
-            if symb not in '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~0123456789':
+            if symb not in '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~':
                 search_term_res += symb
         search_term_res_list4 = search_term_res.split()[:4]
+        FTS_search_str = ' | '.join(search_term_res_list4)
         try:
             if any(ltr in string.ascii_lowercase for ltr in search_term_res_list4[0]):
-                results, terms = query_eng(search_term_res_list4)
+                trg_terms = query_gloss(search_term_res_list4, FTS_search_str, 'english')
+                results = query_eng(FTS_search_str, trg_terms)
+                # results = query_context(search_term_res_list4, FTS_search_str, 'english')
+
             else:
-                # print('invoking elif clause!!!')
-                results, terms = query_rus(search_term_res_list4)
+                trg_terms = query_gloss(search_term_res_list4, FTS_search_str, 'russian')
+                results = query_rus(FTS_search_str, trg_terms)
+                # results = query_context(search_term_res_list4, FTS_search_str, 'russian')
         except IndexError:
             return render_template("retrieve.jinja2", no_res="No results found")
-##########################################################################
-        # # Collect possible Russian translations
-        # # Exact search
-        # exact_search_rus_terms = []
-        # for eng_term in search_term_res_list4:
-        #     rus_query = (Gloss.select(Gloss.rus_term)
-        #                  .where(Gloss.eng_term == eng_term)  # Exact query
-        #                  )
-        #     rus_terms_cur = db.execute(rus_query)  # 'люблю | нравится'
-        #     for t in rus_terms_cur:
-        #         exact_search_rus_terms.append(t[0])
-        # # Fuzzy search
-        # # # eng_terms = fn.to_tsquery(eng_terms)  # No need because
-        # # using .match in where clause invokes to_tsquery() and, thus, FTS
-        # eng_terms = ' | '.join(search_term_res_list4)   # -> 'love | python'
-        # fuzzy_search_rus_terms = []
-        # rus_query = (Gloss.select(Gloss.rus_term)
-        #              .where(Gloss.eng_term.match(eng_terms))  # Fuzzy query
-        #              )
-        # rus_terms_cur = db.execute(rus_query)
-        # for t in rus_terms_cur:
-        #     fuzzy_search_rus_terms.append(t[0])
-        #
-        # # Combine search results
-        # exact_search_rus_terms.extend(fuzzy_search_rus_terms)
-        # rus_terms = set(exact_search_rus_terms)
-        #
-        # rus_terms = ' | '.join(rus_terms)  # 'люблю | нравится | python'
-        #
-        # TranslationUnitsAlias = TranslationUnits.alias()
-        # subquery = (TranslationUnitsAlias.select(
-        #                           TranslationUnitsAlias.eng_content,
-        #                           TranslationUnitsAlias.rus_content,
-        #                           fn.ts_rank_cd(TranslationUnitsAlias.eng_search, fn.to_tsquery(eng_terms)).alias('rnk')
-        #                                         )
-        #                .where(TranslationUnitsAlias.eng_search.match(eng_terms))
-        #                .limit(50)
-        #                )
-        # query = (TranslationUnits.select(
-        #             fn.ts_headline(subquery.c.eng_content,
-        #                            fn.to_tsquery(eng_terms),
-        #                            # 'StartSel=<mark><b>, StopSel=</mark></b>',
-        #                            'HighlightAll=TRUE',
-        #                            ),
-        #             fn.ts_headline(subquery.c.rus_content,
-        #                            fn.to_tsquery(rus_terms),
-        #                            # 'StartSel=<mark><b>, StopSel=</mark></b>'),
-        #                            'HighlightAll=TRUE',
-        #                            )
-        #                                 )
-        #                .from_(subquery)
-        #                .order_by(subquery.c.rnk.desc())
-        #                .limit(10)
-        #                )
-        # rec = db.execute(query)
-        # results = []
-        # for line in rec:
-        #     line0, line1 = re.sub('<b>', '<mark><b>', line[0]), \
-        #                    re.sub('<b>', '<mark><b>', line[1])
-        #     line0, line1 = re.sub('</b>', '</b></mark>', line0), \
-        #                    re.sub('</b>', '</b></mark>', line1)
-        #     results.append((line0, line1))
-    ##########################################################################
+
         if len(results) > 0:
-            return render_template("retrieve.jinja2", results=results, terms=terms)
+            return render_template("retrieve.jinja2", results=results, terms=FTS_search_str)
         else:
-            return render_template("retrieve.jinja2", no_res="No results found", terms=terms)
+            return render_template("retrieve.jinja2", no_res="No results found", terms=FTS_search_str)
 
 
 @app.route('/autocomplete', methods=['GET'])
