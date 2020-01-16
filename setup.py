@@ -9,12 +9,8 @@ from model import Gloss
 db.drop_tables([TranslationUnits, Gloss])
 db.create_tables([TranslationUnits, Gloss])
 
-# data = [('I love (Python)', 'Я люблю (Python)'),
-#         ('I hate Python', 'Я терпеть не могу Python'),
-#         ('I love coding', 'Мне нравится писать код'),
-#         ('I like C++', 'Мне нравится C++')
-#         ]
 ###########################################################################
+# FILLING IN TRANSLATION SEGMENTS DATA
 units_data = []
 with open(os.path.join('data', 'en_ru_heroku_1000'), 'r', encoding='utf8') as fromF:
     for line in fromF:
@@ -30,7 +26,8 @@ unit_fields = [TranslationUnits.eng_content, TranslationUnits.eng_search,
 with db.atomic():
     TranslationUnits.insert_many(units_data, fields=unit_fields).execute()
 
-############# FILLING IN GLOSSARY DATA ###############
+###########################################################################
+# FILLING IN GLOSSARY DATA
 gloss_data = []
 with open(os.path.join('data', 'heroku_glossary'), 'r', encoding='utf8') as fromF:
     for line in fromF:
