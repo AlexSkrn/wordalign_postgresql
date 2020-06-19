@@ -6,11 +6,11 @@
 
 Источник параллельного корпуса: ```https://conferences.unite.un.org/UNCorpus/```
 
-Обработка текстов перед Word Alignment (см. https://github.com/AlexSkrn/wordalign_notebooks)
+Обработка текстов перед Word Alignment (см. https://github.com/AlexSkrn/wordalign_notebooks):
 
 ![chart](/images/preprocessing.png)
 
-Word alignment и получение двуязычного глоссария
+Word alignment и получение двуязычного глоссария:
 
 ![chart_2](/images/chart_2.png)
 
